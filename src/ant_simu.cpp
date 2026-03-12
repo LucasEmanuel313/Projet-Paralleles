@@ -8,6 +8,22 @@
 # include "window.hpp"
 # include "rand_generator.hpp"
 
+#include <chrono>
+#include <iomanip>
+
+using hr_clock = std::chrono::high_resolution_clock;
+using duration_ms = std::chrono::duration<double, std::milli>;
+
+double total_events = 0.0;
+double total_ants = 0.0;
+double total_evap = 0.0;
+double total_update = 0.0;
+double total_render = 0.0;
+double total_blt = 0.0;
+double total_iter = 0.0;
+
+std::size_t nb_iters_mesurees = 0;
+
 void advance_time( const fractal_land& land, pheronome& phen, 
                    const position_t& pos_nest, const position_t& pos_food,
                    std::vector<ant>& ants, std::size_t& cpteur )
@@ -68,20 +84,67 @@ int main(int nargs, char* argv[])
     bool not_food_in_nest = true;
     std::size_t it = 0;
     while (cont_loop) {
-        ++it;
-        while (SDL_PollEvent(&event)) {
-            if (event.type == SDL_QUIT)
-                cont_loop = false;
-        }
-        advance_time( land, phen, pos_nest, pos_food, ants, food_quantity );
-        renderer.display( win, food_quantity );
-        win.blit();
-        if ( not_food_in_nest && food_quantity > 0 ) {
-            std::cout << "La première nourriture est arrivée au nid a l'iteration " << it << std::endl;
-            not_food_in_nest = false;
-        }
-        //SDL_Delay(10);
+    ++it;
+
+    auto t_iter_begin = hr_clock::now();
+
+    auto t0 = hr_clock::now();
+    while (SDL_PollEvent(&event)) {
+        if (event.type == SDL_QUIT)
+            cont_loop = false;
     }
+    auto t1 = hr_clock::now();
+
+    auto t2 = hr_clock::now();
+    for (size_t i = 0; i < ants.size(); ++i)
+        ants[i].advance(phen, land, pos_food, pos_nest, food_quantity);
+    auto t3 = hr_clock::now();
+
+    auto t4 = hr_clock::now();
+    phen.do_evaporation();
+    auto t5 = hr_clock::now();
+
+    auto t6 = hr_clock::now();
+    phen.update();
+    auto t7 = hr_clock::now();
+
+    auto t8 = hr_clock::now();
+    renderer.display(win, food_quantity);
+    auto t9 = hr_clock::now();
+
+    auto t10 = hr_clock::now();
+    win.blit();
+    auto t11 = hr_clock::now();
+
+    auto t_iter_end = hr_clock::now();
+
+    total_events += duration_ms(t1 - t0).count();
+    total_ants   += duration_ms(t3 - t2).count();
+    total_evap   += duration_ms(t5 - t4).count();
+    total_update += duration_ms(t7 - t6).count();
+    total_render += duration_ms(t9 - t8).count();
+    total_blt    += duration_ms(t11 - t10).count();
+    total_iter   += duration_ms(t_iter_end - t_iter_begin).count();
+
+    ++nb_iters_mesurees;
+
+    if (not_food_in_nest && food_quantity > 0) {
+        std::cout << "La première nourriture est arrivée au nid a l'iteration " << it << std::endl;
+        not_food_in_nest = false;
+    }
+
+    if (it % 100 == 0) {
+        std::cout << std::fixed << std::setprecision(3);
+        std::cout << "\n=== Moyennes sur " << nb_iters_mesurees << " iterations ===\n";
+        std::cout << "Events      : " << total_events / nb_iters_mesurees << " ms\n";
+        std::cout << "Ants        : " << total_ants   / nb_iters_mesurees << " ms\n";
+        std::cout << "Evaporation : " << total_evap   / nb_iters_mesurees << " ms\n";
+        std::cout << "Update      : " << total_update / nb_iters_mesurees << " ms\n";
+        std::cout << "Render      : " << total_render / nb_iters_mesurees << " ms\n";
+        std::cout << "Blit        : " << total_blt    / nb_iters_mesurees << " ms\n";
+        std::cout << "Total iter  : " << total_iter   / nb_iters_mesurees << " ms\n";
+    }
+}
     SDL_Quit();
     return 0;
 }
