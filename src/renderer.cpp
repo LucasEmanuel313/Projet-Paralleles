@@ -4,13 +4,13 @@
 
 Renderer::Renderer( const fractal_land& land, const pheronome& phen, 
                     const position_t& pos_nest, const position_t& pos_food,
-                    const std::vector<ant>& ants )
+                    const std::vector<position_t>& ant_positions )
     :   m_ref_land( land ),
         m_land( nullptr ),
         m_ref_phen( phen ),
         m_pos_nest( pos_nest ),
         m_pos_food( pos_food ),
-        m_ref_ants( ants )
+        m_ref_ant_positions( ant_positions )
 {
     // Note: La texture sera créée lors du premier display() car on a besoin du renderer de la fenêtre
 }
@@ -64,8 +64,7 @@ void Renderer::display( Window& win, std::size_t const& compteur )
     SDL_SetRenderDrawBlendMode( renderer, SDL_BLENDMODE_BLEND );
     
     // Affichage des fourmis dans le cadran en haut à gauche :
-    for ( auto& ant : m_ref_ants ) {
-        const position_t& pos_ant = ant.get_position( );
+    for ( const auto& pos_ant : m_ref_ant_positions ) {
         win.set_pen( 0, 255, 255 );
         win.pset( static_cast<int>( pos_ant.x ), static_cast<int>( pos_ant.y ) );
     }

@@ -25,6 +25,7 @@ public:
     bool is_loaded() const { return m_state == loaded; }
     const position_t& get_position() const { return m_position; }
     static void set_exploration_coef(double eps) { m_eps = eps; }
+    static double get_exploration_coef() { return m_eps; }
 
     void advance( pheronome& phen, const fractal_land& land,
                   const position_t& pos_food, const position_t& pos_nest, std::size_t& cpteur_food );
