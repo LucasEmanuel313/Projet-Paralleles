@@ -4,6 +4,7 @@
 #include <chrono>
 #include <iomanip>
 #include <algorithm>
+#include <fstream>
 #include "fractal_land.hpp"
 #include "ant.hpp"
 #include "pheronome.hpp"
@@ -14,7 +15,7 @@
 using hr_clock = std::chrono::high_resolution_clock;
 using duration_ms = std::chrono::duration<double, std::milli>;
 
-// Variáveis globais para medição de performance [cite: 65]
+// Variáveis globais para medição de performance 
 double total_events = 0.0;
 double total_ants = 0.0;
 double total_evap = 0.0;
@@ -24,7 +25,7 @@ double total_blt = 0.0;
 double total_iter = 0.0;
 std::size_t nb_iters_mesurees = 0;
 
-// Versão vetorizada do avanço das formigas [cite: 67, 68]
+// Versão vetorizada do avanço das formigas
 void advance_ant(
     const fractal_land& land, pheronome& phen,
     const position_t& pos_nest, const position_t& pos_food,
@@ -130,8 +131,13 @@ int main(int nargs, char* argv[])
     SDL_Event event;
     bool cont_loop = true;
     bool not_food_in_nest = true;
+    int first_food_iteration = 0;
     std::size_t it = 0;
 
+
+    std::ofstream log_file("performance_log.csv");
+    // Escreve o cabeçalho das colunas
+    log_file << "Iteration,Events,Ants,Evaporation,Update,Render,Blit,Total_Iter\n";
     while (cont_loop) {
         it++;
         auto t_iter_begin = hr_clock::now();
@@ -143,8 +149,11 @@ int main(int nargs, char* argv[])
         }
         auto t1 = hr_clock::now();
 
-        // 2. Avanço das formigas (Loop vetorizado) [cite: 68, 71]
+        
         auto t2 = hr_clock::now();
+
+        // D'abord il faut paralleliser ce loop, vu qu'il est le plus lourd sauf le render
+        #pragma omp parallel for reduction(+:food_quantity)
         for (size_t i = 0; i < nb_ants; ++i) {
             advance_ant(land, phen, pos_nest, pos_food, positions, states, seeds, i, food_quantity);
         }
@@ -184,6 +193,7 @@ int main(int nargs, char* argv[])
 
         if (not_food_in_nest && food_quantity > 0) {
             std::cout << "La première nourriture est arrivée au nid a l'iteration " << it << std::endl;
+            first_food_iteration = it;
             not_food_in_nest = false;
         }
 
@@ -198,8 +208,24 @@ int main(int nargs, char* argv[])
             std::cout << "Blit        : " << total_blt    / nb_iters_mesurees << " ms\n";
             std::cout << "Total iter  : " << total_iter   / nb_iters_mesurees << " ms\n";
         }
+        if (it % 100 == 0) {
+            // Registra as médias no arquivo de log
+            log_file << it << ","
+                    << total_events / nb_iters_mesurees << ","
+                    << total_ants   / nb_iters_mesurees << ","
+                    << total_evap   / nb_iters_mesurees << ","
+                    << total_update / nb_iters_mesurees << ","
+                    << total_render / nb_iters_mesurees << ","
+                    << total_blt    / nb_iters_mesurees << ","
+                    << total_iter   / nb_iters_mesurees << "\n";
+            
+            // Opcional: Garante que os dados sejam gravados no disco sem fechar o arquivo
+            log_file.flush(); 
+        }
     }
-
+    log_file << "La première nourriture est arrivée au nid a l'iteration " << first_food_iteration;
+    log_file.flush();
+    log_file.close();
     SDL_Quit();
     return 0;
 }
