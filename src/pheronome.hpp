@@ -63,6 +63,8 @@ public:
     }
 
     void do_evaporation( ) {
+        //Parallelisation de l'evaporation
+        #pragma omp parallel for
         for ( std::size_t i = 1; i <= m_dim; ++i )
             for ( std::size_t j = 1; j <= m_dim; ++j ) {
                 m_buffer_pheronome[i * m_stride + j][0] *= m_beta;
